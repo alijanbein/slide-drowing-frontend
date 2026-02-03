@@ -9,6 +9,12 @@ import {
   useTheme,
   CircularProgress,
   Badge,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Button,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
@@ -38,6 +44,7 @@ const Presenter = () => {
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [sessionDeleted, setSessionDeleted] = useState(false);
 
   // Dimensions
   const [containerSize, setContainerSize] = useState({
@@ -77,6 +84,32 @@ const Presenter = () => {
     handleResize();
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // Poll session validity every 10 seconds
+  useEffect(() => {
+    if (!session || !joinCode) return;
+
+    const checkSession = async () => {
+      try {
+        await joinSession(joinCode);
+        // Session still exists, all good
+      } catch (error: any) {
+        // Session doesn't exist anymore (404) or other error
+        if (error.response?.status === 404) {
+          console.log("Session has been deleted");
+          setSessionDeleted(true);
+        }
+      }
+    };
+
+    // Check immediately on mount
+    checkSession();
+
+    // Then check every 10 seconds
+    const interval = setInterval(checkSession, 10000);
+
+    return () => clearInterval(interval);
+  }, [session, joinCode]);
 
   // Load Annotations when slide changes
   useEffect(() => {
@@ -290,6 +323,29 @@ const Presenter = () => {
           />
         </Box>
       </Drawer>
+
+      {/* Session Deleted Dialog */}
+      <Dialog open={sessionDeleted} onClose={() => {}}>
+        <DialogTitle>Session Deleted</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This session has been deleted by the presenter. You will be
+            redirected to the join page.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setSessionDeleted(false);
+              window.location.href = "/join";
+            }}
+            variant="contained"
+            color="primary"
+          >
+            OK
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

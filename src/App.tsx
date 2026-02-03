@@ -5,12 +5,14 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Presenter from "./pages/Presenter";
+import JoinSession from "./pages/JoinSession";
 
 function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/join" element={<JoinSession />} />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>

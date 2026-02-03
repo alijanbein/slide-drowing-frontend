@@ -28,3 +28,7 @@ export const updateCurrentSlide = async (
   // But usually FastAPI @Body expects JSON. I will assume JSON object `{ currentSlideNumber: X }` is safer or standard.
   // Re-reading contract: "PATCH ... {currentSlideNumber}" - format usually implies JSON body.
 };
+
+export const deleteSession = async (sessionId: string): Promise<void> => {
+  await client.delete(`/sessions/${sessionId}`);
+};

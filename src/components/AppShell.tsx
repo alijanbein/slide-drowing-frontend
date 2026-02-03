@@ -25,6 +25,9 @@ const AppShell = () => {
           >
             Slide Drawing MVP
           </Typography>
+          <Button color="inherit" onClick={() => navigate("/join")}>
+            Join Session
+          </Button>
           {user && (
             <Box>
               <Button color="inherit" onClick={() => navigate("/dashboard")}>
