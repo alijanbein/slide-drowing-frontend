@@ -1,0 +1,517 @@
+{
+  "info": {
+    "_postman_id": "slide-drawing-api-v2",
+    "name": "Slide Drawing API - PostgreSQL",
+    "description": "Complete API collection for Slide Drawing backend with PostgreSQL database.\n\n**Features:**\n- Automatic token extraction after login/register\n- Automatic ID extraction (presentation, session, etc.)\n- Detailed descriptions for each endpoint\n- Example requests and responses\n\n**How to Use:**\n1. Start your PostgreSQL database\n2. Start the server: `python -m uvicorn app.main:app --reload`\n3. Import this collection into Postman\n4. Run requests in order (register → login → upload → etc.)\n5. Variables are saved automatically!\n\n**Environment Variables Used:**\n- `base_url` - API base URL (default: http://localhost:8000)\n- `auth_token` - JWT token (auto-saved after login)\n- `user_id` - Current user ID (auto-saved)\n- `presentation_id` - Last uploaded presentation ID (auto-saved)\n- `session_id` - Last created session ID (auto-saved)\n- `join_code` - Last session join code (auto-saved)\n- `slide_count` - Number of slides (auto-saved)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "🔐 Authentication",
+      "item": [
+        {
+          "name": "Register New User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('auth_token', response.token);",
+                  "    pm.environment.set('user_id', response.user.id);",
+                  "    console.log('✓ User registered successfully!');",
+                  "    console.log('Token saved:', response.token.substring(0, 20) + '...');",
+                  "    console.log('User ID:', response.user.id);",
+                  "} else if (pm.response.code === 400) {",
+                  "    console.log('⚠️ User already exists with this email');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"John Teacher\",\n    \"email\": \"john@example.com\",\n    \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Register a new teacher user account.\n\n**Request Body:**\n```json\n{\n  \"name\": \"string\" (required, min 2 chars),\n  \"email\": \"string\" (required, valid email),\n  \"password\": \"string\" (required, min 6 chars)\n}\n```\n\n**Success Response (201):**\n```json\n{\n  \"token\": \"eyJ0eXAiOiJKV1Qi...\",\n  \"user\": {\n    \"id\": \"uuid\",\n    \"name\": \"John Teacher\",\n    \"email\": \"john@example.com\",\n    \"role\": \"teacher\",\n    \"created_at\": \"2024-01-01T00:00:00\"\n  }\n}\n```\n\n**Error Response (400):**\n```json\n{\n  \"detail\": \"Email already registered\"\n}\n```\n\nThe token is automatically saved to environment variables for use in subsequent requests."
+          },
+          "response": []
+        },
+        {
+          "name": "Login User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('auth_token', response.token);",
+                  "    pm.environment.set('user_id', response.user.id);",
+                  "    console.log('✓ Login successful!');",
+                  "    console.log('Token saved:', response.token.substring(0, 20) + '...');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"john@example.com\",\n    \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login with existing credentials.\n\n**Request Body:**\n```json\n{\n  \"email\": \"string\",\n  \"password\": \"string\"\n}\n```\n\n**Success Response (200):**\n```json\n{\n  \"token\": \"eyJ0eXAiOiJKV1Qi...\",\n  \"user\": { /* user object */ }\n}\n```\n\n**Error Response (401):**\n```json\n{\n  \"detail\": \"Invalid email or password\"\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current User Info",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Get information about the currently authenticated user.\n\n**Headers:**\n- `Authorization: Bearer <token>` (required)\n\n**Success Response (200):**\n```json\n{\n  \"id\": \"uuid\",\n  \"name\": \"John Teacher\",\n  \"email\": \"john@example.com\",\n  \"role\": \"teacher\",\n  \"created_at\": \"2024-01-01T00:00:00\"\n}\n```\n\n**Error Response (401):**\n```json\n{\n  \"detail\": \"Not authenticated\"\n}\n```"
+          },
+          "response": []
+        }
+      ],
+      "description": "User authentication endpoints - register, login, and profile management."
+    },
+    {
+      "name": "📄 Presentations",
+      "item": [
+        {
+          "name": "Upload PDF Presentation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('presentation_id', response.presentationId);",
+                  "    pm.environment.set('slide_count', response.slideCount);",
+                  "    console.log('✓ PDF uploaded successfully!');",
+                  "    console.log('Presentation ID:', response.presentationId);",
+                  "    console.log('Total slides:', response.slideCount);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "My Lecture Slides",
+                  "type": "text",
+                  "description": "Presentation title"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "PDF file to upload (select a file)"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/presentations",
+              "host": ["{{base_url}}"],
+              "path": ["presentations"]
+            },
+            "description": "Upload a PDF presentation. Each page will be converted to a PNG slide image.\n\n**Headers:**\n- `Authorization: Bearer <token>` (required)\n\n**Form Data:**\n- `title` (string, required): Presentation title\n- `file` (file, required): PDF file\n\n**What Happens:**\n1. PDF is saved\n2. Each page is converted to PNG (stored in storage/slides/)\n3. Database records created for presentation and slides\n\n**Success Response (201):**\n```json\n{\n  \"presentationId\": \"uuid\",\n  \"slideCount\": 25\n}\n```\n\n**Error Response (400):**\n```json\n{\n  \"detail\": \"Only PDF files are allowed\"\n}\n```\n\n⚠️ **Important:** Select a PDF file in the 'file' field before sending!"
+          },
+          "response": []
+        },
+        {
+          "name": "List My Presentations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/presentations",
+              "host": ["{{base_url}}"],
+              "path": ["presentations"]
+            },
+            "description": "Get all presentations owned by the current user.\n\n**Headers:**\n- `Authorization: Bearer <token>` (required)\n\n**Success Response (200):**\n```json\n[\n  {\n    \"id\": \"uuid\",\n    \"title\": \"My Lecture Slides\",\n    \"original_filename\": \"lecture.pdf\",\n    \"created_at\": \"2024-01-01T00:00:00\",\n    \"slide_count\": 25\n  }\n]\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Presentation Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/presentations/{{presentation_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["presentations", "{{presentation_id}}"]
+            },
+            "description": "Get detailed information about a specific presentation including all slides.\n\n**Headers:**\n- `Authorization: Bearer <token>` (required)\n\n**Path Parameters:**\n- `presentation_id`: UUID of the presentation\n\n**Success Response (200):**\n```json\n{\n  \"id\": \"uuid\",\n  \"title\": \"My Lecture Slides\",\n  \"original_filename\": \"lecture.pdf\",\n  \"created_at\": \"2024-01-01T00:00:00\",\n  \"slides\": [\n    {\n      \"id\": \"uuid\",\n      \"slide_number\": 1,\n      \"image_url\": \"/storage/slides/presentation-id/1.png\"\n    },\n    {\n      \"id\": \"uuid\",\n      \"slide_number\": 2,\n      \"image_url\": \"/storage/slides/presentation-id/2.png\"\n    }\n  ]\n}\n```\n\n**Error Response (404):**\n```json\n{\n  \"detail\": \"Presentation not found\"\n}\n```"
+          },
+          "response": []
+        }
+      ],
+      "description": "Presentation management - upload PDFs, list presentations, and retrieve slide information."
+    },
+    {
+      "name": "🎯 Sessions",
+      "item": [
+        {
+          "name": "Create Drawing Session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set('session_id', response.sessionId);",
+                  "    pm.environment.set('join_code', response.joinCode);",
+                  "    console.log('✓ Session created!');",
+                  "    console.log('Session ID:', response.sessionId);",
+                  "    console.log('Join Code:', response.joinCode);",
+                  "    console.log('');",
+                  "    console.log('Students can join with: http://localhost:8000/sessions/join/' + response.joinCode);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"presentationId\": \"{{presentation_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/sessions",
+              "host": ["{{base_url}}"],
+              "path": ["sessions"]
+            },
+            "description": "Create a new drawing session for a presentation.\n\n**Headers:**\n- `Authorization: Bearer <token>` (required)\n\n**Request Body:**\n```json\n{\n  \"presentationId\": \"uuid\"\n}\n```\n\n**Success Response (201):**\n```json\n{\n  \"sessionId\": \"uuid\",\n  \"joinCode\": \"ABC123\"\n}\n```\n\n**What is a Join Code?**\n- A unique 6-character code (uppercase letters + digits)\n- Students use this to join the session without authentication\n- Example: ABC123, DEF456, XYZ789\n\n**Error Response (404):**\n```json\n{\n  \"detail\": \"Presentation not found\"\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Join Session (Public - No Auth)",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/sessions/join/{{join_code}}",
+              "host": ["{{base_url}}"],
+              "path": ["sessions", "join", "{{join_code}}"]
+            },
+            "description": "Join a session using a join code. **No authentication required** - this is a public endpoint for students.\n\n**Path Parameters:**\n- `join_code`: 6-character code (e.g., \"ABC123\")\n\n**Success Response (200):**\n```json\n{\n  \"sessionId\": \"uuid\",\n  \"presentationId\": \"uuid\",\n  \"currentSlideNumber\": 1,\n  \"slideCount\": 25,\n  \"title\": \"My Lecture Slides\"\n}\n```\n\n**Frontend Usage:**\n1. Student enters join code\n2. Frontend calls this endpoint\n3. Receives session info\n4. Loads current slide image\n5. Polls for slide updates\n\n**Error Response (404):**\n```json\n{\n  \"detail\": \"Session not found or inactive\"\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Current Slide",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"currentSlideNumber\": 2\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/sessions/{{session_id}}/current-slide",
+              "host": ["{{base_url}}"],
+              "path": ["sessions", "{{session_id}}", "current-slide"]
+            },
+            "description": "Update the current slide number for a session. **Only the presentation owner (teacher) can update.**\n\n**Headers:**\n- `Authorization: Bearer <token>` (required)\n\n**Path Parameters:**\n- `session_id`: UUID of the session\n\n**Request Body:**\n```json\n{\n  \"currentSlideNumber\": 5\n}\n```\n\n**Success Response (200):**\n```json\n{\n  \"sessionId\": \"uuid\",\n  \"presentationId\": \"uuid\",\n  \"currentSlideNumber\": 5,\n  \"slideCount\": 25,\n  \"title\": \"My Lecture Slides\"\n}\n```\n\n**Use Case:**\n- Teacher changes slide during presentation\n- All students poll and see the new slide number\n- Frontend updates to show new slide\n\n**Error Response (403):**\n```json\n{\n  \"detail\": \"Not authorized to update this session\"\n}\n```\n\n**Error Response (400):**\n```json\n{\n  \"detail\": \"Slide number must be between 1 and 25\"\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Slide Image (Public)",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/sessions/{{presentation_id}}/1/image",
+              "host": ["{{base_url}}"],
+              "path": ["sessions", "{{presentation_id}}", "1", "image"]
+            },
+            "description": "Get a slide image as PNG file. **No authentication required** - public endpoint.\n\n**Path Parameters:**\n- `presentation_id`: UUID of the presentation\n- `slide_number`: Slide number (1-indexed)\n\n**Response (200):**\n- Content-Type: `image/png`\n- Returns the PNG image file\n\n**Frontend Usage:**\n```html\n<img src=\"http://localhost:8000/sessions/{presentationId}/1/image\" />\n```\n\nOr in React/Vue:\n```javascript\nconst imageUrl = `${API_URL}/sessions/${presentationId}/${slideNumber}/image`;\n```\n\n**Error Response (404):**\n```json\n{\n  \"detail\": \"Slide not found\"\n}\n```\n\n💡 **Tip:** Change the slide number in the URL to test different slides (1, 2, 3, etc.)"
+          },
+          "response": []
+        }
+      ],
+      "description": "Session management - create sessions, join with codes, navigate slides, and serve slide images."
+    },
+    {
+      "name": "✏️ Annotations (Drawings)",
+      "item": [
+        {
+          "name": "Get Annotations for Slide",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/sessions/{{session_id}}/slides/1/annotations?authorId=me",
+              "host": ["{{base_url}}"],
+              "path": [
+                "sessions",
+                "{{session_id}}",
+                "slides",
+                "1",
+                "annotations"
+              ],
+              "query": [
+                {
+                  "key": "authorId",
+                  "value": "me",
+                  "description": "Use 'me' for current user or specific user UUID"
+                }
+              ]
+            },
+            "description": "Get drawing annotations for a specific slide and user.\n\n**Headers:**\n- `Authorization: Bearer <token>` (required)\n\n**Path Parameters:**\n- `session_id`: UUID of the session\n- `slide_number`: Slide number (1-indexed)\n\n**Query Parameters:**\n- `authorId`: \"me\" for current user, or specific user UUID\n\n**Success Response (200) - With Annotations:**\n```json\n{\n  \"version\": 1,\n  \"width\": 1920,\n  \"height\": 1080,\n  \"strokes\": [\n    {\n      \"tool\": \"pen\",\n      \"color\": \"#FF0000\",\n      \"size\": 3,\n      \"points\": [100, 200, 105, 205, 110, 210],\n      \"opacity\": 1.0,\n      \"createdAt\": \"2024-01-01T12:00:00Z\"\n    }\n  ]\n}\n```\n\n**Success Response (200) - No Annotations:**\n```json\n{\n  \"version\": 1,\n  \"width\": 0,\n  \"height\": 0,\n  \"strokes\": []\n}\n```\n\n**Frontend Workflow:**\n1. User navigates to a slide\n2. Frontend calls this endpoint\n3. Renders saved strokes on canvas"
+          },
+          "response": []
+        },
+        {
+          "name": "Save Annotations for Slide",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"version\": 1,\n    \"width\": 1920,\n    \"height\": 1080,\n    \"strokes\": [\n        {\n            \"tool\": \"pen\",\n            \"color\": \"#FF0000\",\n            \"size\": 3,\n            \"points\": [100, 200, 105, 205, 110, 210, 115, 215, 120, 220],\n            \"opacity\": 1.0,\n            \"createdAt\": \"2024-01-01T12:00:00Z\"\n        },\n        {\n            \"tool\": \"pen\",\n            \"color\": \"#0000FF\",\n            \"size\": 5,\n            \"points\": [200, 300, 210, 310, 220, 320, 230, 330],\n            \"opacity\": 0.8,\n            \"createdAt\": \"2024-01-01T12:01:00Z\"\n        },\n        {\n            \"tool\": \"highlighter\",\n            \"color\": \"#FFFF00\",\n            \"size\": 20,\n            \"points\": [300, 400, 350, 400],\n            \"opacity\": 0.5,\n            \"createdAt\": \"2024-01-01T12:02:00Z\"\n        },\n        {\n            \"tool\": \"eraser\",\n            \"color\": \"#FFFFFF\",\n            \"size\": 15,\n            \"points\": [150, 250, 160, 260, 170, 270],\n            \"opacity\": 1.0,\n            \"createdAt\": \"2024-01-01T12:03:00Z\"\n        }\n    ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/sessions/{{session_id}}/slides/1/annotations",
+              "host": ["{{base_url}}"],
+              "path": [
+                "sessions",
+                "{{session_id}}",
+                "slides",
+                "1",
+                "annotations"
+              ]
+            },
+            "description": "Save or update annotations for a slide. **Uses UPSERT logic** - creates new or updates existing.\n\n**Headers:**\n- `Authorization: Bearer <token>` (required)\n\n**Path Parameters:**\n- `session_id`: UUID of the session\n- `slide_number`: Slide number (1-indexed)\n\n**Request Body:**\n```json\n{\n  \"version\": 1,\n  \"width\": number,      // Canvas width\n  \"height\": number,     // Canvas height\n  \"strokes\": [          // Array of drawing strokes\n    {\n      \"tool\": \"pen\" | \"eraser\" | \"highlighter\",\n      \"color\": \"#RRGGBB\",\n      \"size\": number,\n      \"points\": [x1, y1, x2, y2, ...],  // Flat array of coordinates\n      \"opacity\": number (0-1),\n      \"createdAt\": \"ISO-8601-string\"\n    }\n  ]\n}\n```\n\n**Stroke Points Format:**\n- Flat array of alternating x,y coordinates\n- Example: `[10, 20, 15, 25, 20, 30]` represents 3 points: (10,20), (15,25), (20,30)\n\n**Success Response (200):**\n```json\n{\n  \"id\": \"uuid\",\n  \"session_id\": \"uuid\",\n  \"slide_id\": \"uuid\",\n  \"author_id\": \"uuid\",\n  \"strokes_json\": { /* same as request */ },\n  \"updated_at\": \"2024-01-01T12:00:00\"\n}\n```\n\n**Frontend Workflow:**\n1. User draws on canvas\n2. Collect stroke data\n3. Periodically save (e.g., every 2 seconds or on slide change)\n4. This replaces all previous annotations for this user on this slide"
+          },
+          "response": []
+        }
+      ],
+      "description": "Drawing annotations - save and retrieve drawing strokes for collaborative annotation."
+    },
+    {
+      "name": "🏥 Health & Info",
+      "item": [
+        {
+          "name": "API Root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"],
+              "path": [""]
+            },
+            "description": "Get basic API information.\n\n**Success Response (200):**\n```json\n{\n  \"message\": \"Slide Drawing API\",\n  \"version\": \"1.0.0\",\n  \"docs\": \"/docs\"\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Check if the API is running and healthy.\n\n**Success Response (200):**\n```json\n{\n  \"status\": \"healthy\"\n}\n```\n\nUse this endpoint to verify:\n- Server is running\n- Database connection is working\n- API is accessible"
+          },
+          "response": []
+        }
+      ],
+      "description": "System health and information endpoints."
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "presentation_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "session_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "join_code",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "slide_count",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
