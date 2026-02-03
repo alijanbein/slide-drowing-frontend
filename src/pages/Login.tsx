@@ -22,20 +22,7 @@ const Login = () => {
     e.preventDefault();
     setError("");
     try {
-      await login({ username: email, password }); // Contract says {email, password} but let's double check contract.
-      // Contract: POST /auth/login {email,password} -> {token, user}
-      // Note: "username" is often used in OAuth/FastAPI standard form, but the USER REQUEST said:
-      // "POST /auth/login {email,password}"
-      // I will send email as "email" unless standard form data is required.
-      // Wait, standard FastAPI OAuth2PasswordRequestForm expects `username` and `password` as form data.
-      // The user specified contract explicitly: `{email,password}` JSON?
-      // "POST /auth/login {email,password} -> {token, user}" implies JSON body.
-      // I will stick to what the user asked: JSON props matching the names.
-      // However, if the backend uses `OAuth2PasswordRequestForm`, it needs `username` (which holds email).
-      // Given "API CONTRACT (do not change)", I must send what is documented.
-      // If it fails, I might need to adjust. But I will use the contract names.
-      // Actually my contexts passed `data` directly.
-      // I'll assume usage of `email` and `password`.
+      await login({ email, password });
 
       navigate("/dashboard");
     } catch (err: any) {
